@@ -1,0 +1,2 @@
+# s3manifestcollectstatic
+Optimized collectstatic for S3ManifestStaticStorage
