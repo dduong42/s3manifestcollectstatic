@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django import VERSION
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
@@ -33,17 +34,25 @@ class Command(BaseCommand):
 
         with TemporaryDirectory() as tmpdirname:
             saved_static_root = settings.STATIC_ROOT
-            saved_storage = settings.STATICFILES_STORAGE
+
+            if VERSION[0] >= 4 and VERSION[1] >= 2:
+                saved_storage = settings.STORAGES['staticfiles']['BACKEND']
+                settings.STORAGES['staticfiles']['BACKEND'] = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+            else:
+                saved_storage = settings.STATICFILES_STORAGE
+                settings.STATICFILES_STORAGE = (
+                    "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+                )
 
             settings.STATIC_ROOT = tmpdirname
-            settings.STATICFILES_STORAGE = (
-                "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
-            )
 
             call_command("collectstatic")
 
             settings.STATIC_ROOT = saved_static_root
-            settings.STATICFILES_STORAGE = saved_storage
+            if VERSION[0] >= 4 and VERSION[1] >= 2:
+                settings.STORAGES['staticfiles']['BACKEND'] = saved_storage
+            else:
+                settings.STATICFILES_STORAGE = saved_storage
 
             storage = import_string(saved_storage)()
 
