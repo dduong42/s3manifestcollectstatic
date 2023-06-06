@@ -44,6 +44,11 @@ If you want to reupload the files use `-f`:
 ./manage.py s3manifestcollectstatic -f
 ```
 
+You can limit the maximum number of workers using `-w`:
+```
+./manage.py s3manifestcollectstatic -w 4
+```
+
 Tested with:
 - Python 3.9, Django 3.2, django-storages 1.11
 - Python 3.11, Django 4.2, django-storages 1.13
