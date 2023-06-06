@@ -8,7 +8,7 @@ from django import VERSION
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 MANIFEST_PATH = "staticfiles.json"
 
@@ -27,6 +27,12 @@ class Command(BaseCommand):
             "--force",
             action="store_true",
             help="Force the reupload of files",
+        )
+        parser.add_argument(
+            "-w",
+            "--max-workers",
+            type=int,
+            help="Max number of workers",
         )
 
     @staticmethod
@@ -56,6 +62,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.force = options["force"]
         self.verbosity = options["verbosity"]
+        self.max_workers = options["max_workers"]
+        if self.max_workers is not None and self.max_workers <= 0:
+            raise CommandError("The maximum number of workers must be greater than 0.")
 
         with TemporaryDirectory() as tmpdirname:
             with self.override_storage_settings(
@@ -86,7 +95,7 @@ class Command(BaseCommand):
                 return path
 
             self.log(f"Start the upload of {len(to_upload)} files", level=1)
-            with ThreadPoolExecutor() as executor:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 for path in executor.map(_save_asset, to_upload):
                     self.log(f"{path} was uploaded", level=2)
 
