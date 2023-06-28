@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 
 from django import VERSION
 from django.conf import settings
-from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
@@ -34,6 +33,18 @@ class Command(BaseCommand):
             type=int,
             help="Max number of workers",
         )
+
+    @staticmethod
+    def get_staticfiles_storage():
+        if VERSION < (4, 2):
+            from django.core.files.storage import get_storage_class
+
+            return get_storage_class(settings.STATICFILES_STORAGE)()
+        else:
+            from django.conf import STATICFILES_STORAGE_ALIAS
+            from django.core.files.storage import StorageHandler
+
+            return StorageHandler()[STATICFILES_STORAGE_ALIAS]
 
     @staticmethod
     @contextmanager
@@ -77,6 +88,7 @@ class Command(BaseCommand):
             with manifest.open("rb") as f:
                 to_upload = set(json.load(f)["paths"].values())
 
+            staticfiles_storage = self.get_staticfiles_storage()
             if staticfiles_storage.exists(MANIFEST_PATH):
                 with staticfiles_storage.open(MANIFEST_PATH) as f:
                     already_uploaded = set(json.load(f)["paths"].values())
