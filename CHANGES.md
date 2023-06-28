@@ -1,3 +1,10 @@
+# Version 0.2.1
+
+Released 2023-06-28
+
+- Fix caching issue from `django.core.files.storage.storages`
+
+
 # Version 0.2.0
 
 Released 2023-06-05
