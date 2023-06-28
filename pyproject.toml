@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "s3manifestcollectstatic"
-version = "0.2.0"
+version = "0.2.1"
 description = "Optimized collectstatic for S3ManifestStaticStorage"
 authors = ["Daniel Dương <daniel.duong@outlook.com>"]
 license = "MIT"
