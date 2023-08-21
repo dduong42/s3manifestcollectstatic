@@ -1,11 +1,10 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from django import VERSION
-from django.conf import settings
+from django.contrib.staticfiles.management.commands import collectstatic
+from django.contrib.staticfiles.storage import ManifestStaticFilesStorage, staticfiles_storage
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
@@ -28,58 +27,19 @@ class Command(BaseCommand):
             help="Force the reupload of files",
         )
 
-    @staticmethod
-    def get_staticfiles_storage():
-        if VERSION < (4, 2):
-            from django.core.files.storage import get_storage_class
-
-            return get_storage_class(settings.STATICFILES_STORAGE)()
-        else:
-            from django.conf import STATICFILES_STORAGE_ALIAS
-            from django.core.files.storage import StorageHandler
-
-            return StorageHandler()[STATICFILES_STORAGE_ALIAS]
-
-    @staticmethod
-    @contextmanager
-    def override_storage_settings(static_root, staticfiles_storage):
-        saved_static_root = settings.STATIC_ROOT
-        settings.STATIC_ROOT = static_root
-
-        if VERSION < (4, 2) or settings.is_overridden("STATICFILES_STORAGE"):
-            saved_storage = settings.STATICFILES_STORAGE
-            settings.STATICFILES_STORAGE = staticfiles_storage
-            yield
-            settings.STATICFILES_STORAGE = saved_storage
-        else:
-            saved_storage = settings.STORAGES
-            settings.STORAGES = {
-                **saved_storage,
-                "staticfiles": {
-                    "BACKEND": staticfiles_storage,
-                },
-            }
-            yield
-            settings.STORAGES = saved_storage
-
-        settings.STATIC_ROOT = saved_static_root
-
     def handle(self, *args, **options):
         self.force = options["force"]
         self.verbosity = options["verbosity"]
 
         with TemporaryDirectory() as tmpdirname:
-            with self.override_storage_settings(
-                tmpdirname,
-                staticfiles_storage="django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
-            ):
-                call_command("collectstatic")
+            command = collectstatic.Command()
+            command.storage = ManifestStaticFilesStorage(location=tmpdirname)
+            call_command(command)
 
             manifest = Path(tmpdirname) / MANIFEST_PATH
             with manifest.open("rb") as f:
                 to_upload = set(json.load(f)["paths"].values())
 
-            staticfiles_storage = self.get_staticfiles_storage()
             if staticfiles_storage.exists(MANIFEST_PATH):
                 with staticfiles_storage.open(MANIFEST_PATH) as f:
                     already_uploaded = set(json.load(f)["paths"].values())
